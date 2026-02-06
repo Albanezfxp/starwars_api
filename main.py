@@ -14,15 +14,26 @@ app = FastAPI()
 
 @app.middleware("http")
 async def api_key_middleware(request: Request, call_next):
+    # Rotas que precisam ficar públicas (pra Swagger funcionar no navegador)
+    public_paths = {
+        "/docs",
+        "/openapi.json",
+        "/docs/oauth2-redirect",
+        "/redoc",
+        "/health",  # opcional
+    }
+
+    if request.url.path in public_paths:
+        return await call_next(request)
+
     api_key = os.getenv("API_KEY")  # se não existir, auth fica desligada
     if api_key:
         sent = request.headers.get("x-api-key")
         if sent != api_key:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Unauthorized"},
-            )
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+
     return await call_next(request)
+
 
 app.include_router(people_router)
 app.include_router(films_router)
